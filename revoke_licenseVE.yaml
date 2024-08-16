@@ -1,0 +1,59 @@
+---
+- name: Revoke license
+  hosts: localhost
+  connection: local
+  gather_facts: no
+
+  vars:
+
+  vars_files:
+    - ../creds/creds.yaml
+
+  tasks:
+  - set_fact:
+      tok_body: "{{ lookup('template', './getToken.j2', split_lines=False) }}"
+
+  - set_fact:
+      json_body: "{{ lookup('template', './revoke_licenseVE.j2', split_lines=False) }}"
+
+  - name: Get IQ Token
+    uri:
+      url: https://10.1.1.10/mgmt/shared/authn/login
+      user: "{{ username }}"
+      password: "{{ password }}"
+      method: POST
+      body: "{{ tok_body }}"
+      force_basic_auth: yes
+      status_code: 200
+      body_format: json
+      validate_certs: no
+    register: token_output
+
+  - set_fact:
+      token={{ token_output.json.token.token }}
+
+  - name: Revoke License VE
+    uri: 
+      url: https://10.1.1.10/mgmt/cm/device/tasks/licensing/pool/member-management/
+      method: POST
+      body: "{{ json_body }}"
+      force_basic_auth: yes
+      status_code: 202
+      body_format: json
+      validate_certs: no
+      headers:
+        X-F5-Auth-Token : "{{ token }}"
+    register: license_output    
+
+  - name: Debug token output
+    debug: 
+       msg: "{{ token_output.json.token.token }}"
+
+  - name: Debug json_body
+    debug:
+       msg: "{{ json_body }}"
+
+  - name: Debug license output
+    debug:
+       msg: "Use the following command to get the status:- ansible-playbook getStatus.yaml --extra-vars 'id={{ license_output.json.id }}'"
+...

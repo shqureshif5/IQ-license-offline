@@ -1,0 +1,52 @@
+---
+- name: License VE
+  hosts: localhost
+  connection: local
+  gather_facts: no
+
+  vars:
+
+  vars_files:
+    - ../creds/creds.yaml
+
+  tasks:
+  - set_fact:
+      tok_body: "{{ lookup('template', './getToken.j2', split_lines=False) }}"
+
+  - name: Get IQ Token
+    uri:
+      url: https://10.1.1.10/mgmt/shared/authn/login
+      user: "{{ username }}"
+      password: "{{ password }}"
+      method: POST
+      body: "{{ tok_body }}"
+      force_basic_auth: yes
+      status_code: 200
+      body_format: json
+      validate_certs: no
+    register: token_output
+
+  - set_fact:
+      token={{ token_output.json.token.token }}
+
+  - name: License VE
+    uri: 
+      url: https://10.1.1.10/mgmt/cm/device/tasks/licensing/pool/member-management/{{id}}
+      method: GET
+      force_basic_auth: yes
+      status_code: 200
+      body_format: json
+      validate_certs: no
+      headers:
+        X-F5-Auth-Token : "{{ token }}"
+    register: license_output    
+
+  - name: Debug token output
+    debug: 
+       msg: "{{ token_output.json.token.token }}"
+
+  - name: Debug license output
+    debug:
+       msg: "{{ license_output}} "
+
+...
